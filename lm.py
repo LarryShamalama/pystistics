@@ -3,6 +3,9 @@ import pandas as pd
 
 from family import *
 
+class FormulaError(Exception):
+    print("Something is wrong with your formula...")
+
 class lm:
 
     def __init__(self, formula, data=None):
@@ -13,8 +16,14 @@ class lm:
         formula is something like 'Y ~ X+Age+BMI'
         '''
 
-        self.formula = "".join(formula.split(" "))
-        variables = formula.split("+")
+        self.formula = formula.replace(" ", "")
+
+
+        try:
+            _Y_var, _X_var = formula.split("~")
+            variables = _X_var.split("+")
+        except ValueError as e:
+            raise FormulaError
 
         if data is None:
             # look in global environment
@@ -22,18 +31,18 @@ class lm:
 
         try:
 
-            if variables[1] in ["0", "1"]:
+            if variables[0] in ["0", "1"]:
                 _intercept = bool(int(variables[1]))
-                assert all(not var.isdigit() for var in [variables[0]]+variables[2:]) 
+                assert all(not var.isdigit() for var in [_Y_var] + _X_var[1:]) 
             else:
                 _intercept = True
-                assert all(not var.isdigit() for var in variables)
+                assert all(not var.isdigit() for var in [_Y_var] + _X_var)
 
-            self.y = data[variables[0]]
+            self.y = data[_Y_var] # pd Series (or column)
 
-            if variables[1] == '.':
+            if variables[0] == '.':
                 variables = data.columns
-                variables.remove(self.y.columns[0])
+                variables.remove(_Y_var)
 
             self.x = data[variables]
 
@@ -42,8 +51,7 @@ class lm:
             raise KeyError
 
         except AssertionError:
-            print("Something is wrong in your formula.")
-            raise ValueError
+            raise FormulaError
         
         _X = self.x.values
         n, p = _X.shape
@@ -57,14 +65,14 @@ class lm:
 
 
 class glm(lm):
-    def __init__(self, family="gaussian"):
+    def __init__(self, formula, data=None, family=gaussian):
         '''
         attributes inherited include:
         formula, y, x, coefficients, residuals
 
         for now, canonical link is assumed
         '''
-        super().__init__(self)
+        super().__init__(self, formula, data)
 
         assert issubclass(family, _family)
 
