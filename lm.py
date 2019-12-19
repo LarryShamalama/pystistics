@@ -4,7 +4,8 @@ import pandas as pd
 from family import *
 
 class FormulaError(Exception):
-    print("Something is wrong with your formula...")
+    def handle():
+        return "Something is wrong with your formula..."
 
 class lm:
 
@@ -18,13 +19,12 @@ class lm:
 
         self.formula = formula.replace(" ", "")
 
-
         try:
-            _Y_var, _X_var = formula.split("~")
+            _Y_var, _X_var = self.formula.split("~")
             variables = _X_var.split("+")
         except ValueError as e:
-            raise FormulaError
-
+            raise FormulaError(FormulaError.handle())
+    
         if data is None:
             # look in global environment
             pass
@@ -33,32 +33,31 @@ class lm:
 
             if variables[0] in ["0", "1"]:
                 _intercept = bool(int(variables[1]))
-                assert all(not var.isdigit() for var in [_Y_var] + _X_var[1:]) 
+                assert all(not var.isdigit() for var in [_Y_var] + variables[1:]) 
             else:
                 _intercept = True
-                assert all(not var.isdigit() for var in [_Y_var] + _X_var)
+                assert all(not var.isdigit() for var in [_Y_var] + variables)
 
-            self.y = data[_Y_var] # pd Series (or column)
+            self.y = data[_Y_var].values # pd Series (or column)
 
             if variables[0] == '.':
                 variables = data.columns
                 variables.remove(_Y_var)
 
-            self.x = data[variables]
+            self.x = data[variables].values
 
         except KeyError:
             print("The names in the formula don't match the ones in the DataFrame.")
             raise KeyError
 
         except AssertionError:
-            raise FormulaError
+            raise FormulaError(FormulaError.handle())
         
-        _X = self.x.values
-        n, p = _X.shape
-        _x = np.hstack((np.ones(shape=[n, 1]), _X))
+        n, p = self.x.shape
+        _x = np.hstack((np.ones(shape=[n, 1]), self.x))
 
-        self.coefficients  = np.linalg.inv(_X.T@_X)@_X.T@self.y.values
-        self.fitted_values = self.coefficients@_x
+        self.coefficients  = np.linalg.inv(_x.T@_x)@_x.T@self.y
+        self.fitted_values = _x@self.coefficients
         self.residuals     = self.y - self.fitted_values
             
 
@@ -77,3 +76,5 @@ class glm(lm):
         assert issubclass(family, _family)
 
         self.family = family
+
+        
