@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.optimize as opt
 
 from family import *
 
@@ -61,20 +62,37 @@ class lm:
         self.residuals     = self.y - self.fitted_values
             
 
-
-
 class glm(lm):
-    def __init__(self, formula, data=None, family=gaussian):
+    def __init__(self, formula, data=None, family=gaussian()):
         '''
         attributes inherited include:
         formula, y, x, coefficients, residuals
 
-        for now, canonical link is assumed
+        only works for binomial with logit link, for now
         '''
-        super().__init__(self, formula, data)
-
-        assert issubclass(family, _family)
+        super().__init__(formula, data)
 
         self.family = family
 
-        
+        if isinstance(family, gaussian):
+            # do nothing: all inherited attributes are okay (linear model)
+            pass
+
+        elif isinstance(family, binomial):
+            # use Newton-raphson for minimization of negative log-likelihood
+            link = family.link
+
+            if link == "logit":
+
+                def neg_likelihood(beta):
+                    _x = np.hstack((np.ones(shape=[n, 1]), self.x))
+
+                    return -sum(np.exp(beta@_x) + self.y*(beta@_x))
+
+                init_beta = np.zeros(len(self.coefficients))
+
+                self.coefficients = opt.minimize(fun=neg_likelihood, 
+                                                 x0=init_beta, 
+                                                 method="Newton-CG")
+
+                                

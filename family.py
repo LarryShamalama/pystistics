@@ -14,3 +14,7 @@ class _family:
 class gaussian(_family):
     def __init__(self, link="identity"):
         super().__init__(link)
+
+class binomial(_family):
+    def __init__(self, link="logit"):
+        super().__init__(link)
